@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.19;
+pragma solidity ^0.8.19;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
@@ -10,10 +10,10 @@ import { ERC20Pausable } from "@openzeppelin/contracts/token/ERC20/extensions/ER
 import { ERC20Capped } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
 
 contract Lunacat is ERC20, ERC20Permit, Ownable, ERC20Burnable, ERC20Pausable, ERC20Capped {
-    uint265 initialSupply;
-    uint265 cappedSupply;
-    uint265 minerReward;
+    uint256 initialSupply;
     uint256 cappedSupply;
+    uint256 minerReward;
+    uint256 _cappedSupply;
     uint256 burnPercentage;
     uint256 lpfee;
 
@@ -22,12 +22,12 @@ contract Lunacat is ERC20, ERC20Permit, Ownable, ERC20Burnable, ERC20Pausable, E
     event LpfeeChanged (uint256 oldFee, uint256 newFee, uint256 timestamp);
     event BurnFeeChanged (uint256 oldFee, uint256 newFee, uint256 timestamp);
     
-    constructor (uint265 initialSupply, uint265 _minerReward, uint256 _cappedSupply, uint256 _burnPercentage, uint256 _lpfee)
-                ERC("Luna Cat", "LNC")
+    constructor (uint256 _initialSupply, uint256 _minerReward, uint256 __cappedSupply, uint256 _burnPercentage, uint256 _lpfee)
+                ERC20("Luna Cat", "LNC")
                 Ownable(msg.sender){
-        _mint(msg.sender, initialSupply * 10 ** deicmals());
+        _mint(msg.sender, initialSupply * 10 ** decimals());
         minerReward = _minerReward;
-        cappedSupply = _cappedSupply;
+        _cappedSupply = __cappedSupply;
         burnPercentage = _burnPercentage / 100;
         lpfee = _lpfee / 100;
 
@@ -53,21 +53,21 @@ contract Lunacat is ERC20, ERC20Permit, Ownable, ERC20Burnable, ERC20Pausable, E
         }
 
         if(from == address(0)){
-            _totalSupply += value;
+            totalSupply += value;
         }
         else{
             uint256 fromBalance = balanceOf(from);
             
-            uint256 _lpfee = lpfee * amount;
-            uint256 fee = (burnPercentage * amount) + _lpfee;
-            uint256 _amount = amount + fee;
+            uint256 _lpfee = lpfee * value;
+            uint256 fee = (burnPercentage * value) + _lpfee;
+            uint256 amount = value + fee;
 
-            if(fromBalance < _amount){
-                revert ERC20InsufficientBalance(from, fromBalance, _amount);
+            if(fromBalance < amount){
+                revert ERC20InsufficientBalance(from, fromBalance, amount);
             }
             else{
-                _balances[from] = fromBalance - _amount;
-                burn(sender, burnPercentage);
+                balanceOf(from) = fromBalance - amount;
+                burn(from, burnPercentage);
                 contribute(_lpfee);
             }
         }
@@ -76,7 +76,7 @@ contract Lunacat is ERC20, ERC20Permit, Ownable, ERC20Burnable, ERC20Pausable, E
     }
 
     function transfer (address receiver, uint256 amount) public virtual returns (bool){
-        _transfer(sender, msg.sender, _amount);
+        _transfer(msg.sender, msg.sender, amount);
         return true;
     }
 
@@ -106,25 +106,25 @@ contract Lunacat is ERC20, ERC20Permit, Ownable, ERC20Burnable, ERC20Pausable, E
         receiver.transfer(address(this).balance);
     }
 
-    function disableBurn () onlyOwner {
+    function disableBurn () public onlyOwner {
         uint256 oldBurnPercentage = burnPercentage;
         burnPercentage = 0;
         emit BurnFeeChanged(oldBurnPercentage, 0, block.timestamp);
     }
 
-    function disableLP () onlyOwner {
-        oldLpFee = lpfee;
+    function disableLP () public onlyOwner {
+        uint256 oldLpFee = lpfee;
         lpfee = 0;
         emit LpfeeChanged(oldLpFee, 0, block.timestamp);
     }
 
-    function changeBurnFee (uint256 value) onlyOwner {
+    function changeBurnFee (uint256 value) public onlyOwner {
         uint256 oldBurnPercentage = burnPercentage;
         burnPercentage = value;
         emit BurnFeeChanged(oldBurnPercentage, burnPercentage, block.timestamp);
     }
 
-    function changeLpFee (uint256 value) onlyOwner {
+    function changeLpFee (uint256 value) public onlyOwner {
         uint256 oldLpFee = lpfee;
         lpfee = value;
         emit LpfeeChanged(oldLpFee, lpfee, block.timestamp);
@@ -134,23 +134,14 @@ contract Lunacat is ERC20, ERC20Permit, Ownable, ERC20Burnable, ERC20Pausable, E
     // ! admin only functionalities
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    function contribute (uint256 amount) external payable {}
+    function contribute (uint256 amount) public payable {}
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // recollection of erc20 functions
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     function totalSupply () public view virtual returns (uint256){
-        _totalSupply();
-    }
-    function balanceOf (address account) public view virtual returns (uint256){
-        _balances[account];
-    }
-    function symbol () public view virtual returns (uint256){
-        return _symbol;
-    }
-    function name () public view virtual returns (uint256){
-        return _name;
+        return totalSupply;
     }
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////
